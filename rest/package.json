@@ -1,0 +1,14 @@
+{
+  "name": "rest",
+  "version": "1.0.0",
+  "description": "mini project for mastering api",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "author": "abads",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^5.2.1"
+  }
+}
