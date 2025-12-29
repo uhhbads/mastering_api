@@ -32,6 +32,9 @@ router.delete('/users/me', authMiddleware, authController.deleteUser);
 /* GET for TRANSACTIONS */
 router.get('/transactions', authMiddleware, authController.getTransactions);
 
+/* GET for TRANSACTION */
+router.get('/transactions/:id', authMiddleware, authController.getTransactionId);
+
 /* POST for TRANSACTIONS */
 router.post('/transactions', authMiddleware, authController.createTransaction);
 

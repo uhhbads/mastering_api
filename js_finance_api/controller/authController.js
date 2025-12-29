@@ -35,7 +35,7 @@ export const login = async (req, res) => {
 
         //find user by username
         const user = await User.findOne({ username });
-        if (!user) {
+        if (!user || user.isDeleted) {
             return res.status(400).json({ error: 'Invalid username or password' });
         }
 
@@ -87,14 +87,27 @@ export const deleteUser = async (req, res) => {
   try {
     const userId = req.user.id;
 
-    await Transaction.deleteMany({ userId });
-    await User.findByIdAndDelete(userId);
+    // Mark user as deleted
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
 
-    res.status(200).json({ message: 'Account deleted successfully' });
+    if (!user) return res.status(404).json({ error: 'User not found' });
+
+    await Transaction.updateMany(
+      { userId },
+      { isDeleted: true, deletedAt: new Date() }
+    );
+
+    res.status(200).json({ message: 'Account marked as deleted' });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to delete account' });
   }
 };
+
 
 /* GET /transactions */
 export const getTransactions = async (req, res) => {
@@ -106,6 +119,19 @@ export const getTransactions = async (req, res) => {
     res.status(200).json(transactions);
   } catch (err) {
     res.status(500).json({ error: 'Failed to fetch transactions' });
+  }
+};
+
+/* GET /transactions */
+export const getTransactionId = async (req, res) => {
+  try {
+    const transaction = await Transaction.findById(req.params.id)
+        .populate('userId', 'username')
+        .sort({ date: -1 });
+
+    res.status(200).json(transaction);
+  } catch (err) {
+    res.status(500).json({ error: 'Failed to fetch transaction' });
   }
 };
 
@@ -149,14 +175,17 @@ export const updateTransaction = async (req, res) => {
 /* DELETE /transactions/:id */
 export const deleteTransaction = async (req, res) => {
   try {
-    const deleted = await Transaction.findOneAndDelete({
-      _id: req.params.id,
-      userId: req.user.id
-    });
+    const deleted = await Transaction.findOneAndUpdate(
+      { _id: req.params.id, userId: req.user.id },
+      { isDeleted: true, deletedAt: new Date() },
+      { new: true }
+    );
 
     if (!deleted) return res.status(404).json({ error: 'Transaction not found' });
-    res.status(200).json({ message: 'Transaction deleted successfully' });
+
+    res.status(200).json({ message: 'Transaction marked as deleted', transaction: deleted });
   } catch (err) {
+    console.error(err);
     res.status(500).json({ error: 'Failed to delete transaction' });
   }
 };
@@ -182,6 +211,7 @@ export default {
     profile,
     deleteUser,
     getTransactions,
+    getTransactionId,
     createTransaction,
     updateTransaction,
     deleteTransaction,
