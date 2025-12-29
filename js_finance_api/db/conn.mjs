@@ -26,4 +26,4 @@ export function getDb(dbName) {
   return client.db(dbName);
 }
 
-export default client;
+//export default client;

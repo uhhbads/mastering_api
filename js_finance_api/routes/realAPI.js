@@ -21,13 +21,47 @@ router.get('/', async function(req, res, next) {
 });
 
 /* POST for REGISTER */
-router.post('/register', function(req, res, next) {
-  res.send('POST for REGISTER');
+router.post('/register', async (req, res) => {
+  try {
+    const db = getDb('users');
+    const collection = db.collection("test");
+
+    let newDocument = { ...req.body, date: new Date() };
+
+    const result = await collection.insertOne(newDocument);
+
+    newDocument._id = result.insertedId;
+
+    res.status(201).json(newDocument); 
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to register' });
+  }
 });
+
 
 /* POST for LOGIN */
 router.post('/login', function(req, res, next) {
   res.send('POST for LOGIN');
+});
+
+/* DELETE for USER */
+router.delete('/user/:id', async (req, res) => {
+  try {
+    const db = getDb('users');
+    const collection = db.collection("test");
+
+    const result = await collection.deleteOne({ username: req.params.id });
+
+    if (result.deletedCount === 0) {
+      return res.status(404).json({ error: 'User not found' });
+    }
+
+    res.status(200).json({ message: `${req.params.id} user deleted successfully` });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json({ error: 'Failed to delete user' });
+  }
 });
 
 /* GET for TRANSACTIONS */
