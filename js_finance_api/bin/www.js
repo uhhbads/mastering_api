@@ -4,9 +4,17 @@
  * Module dependencies.
  */
 
+/*
 var app = require('../app');
 var debug = require('debug')('js-finance-api:server');
 var http = require('http');
+*/
+
+import app from '../app.js';
+import debugLib from 'debug';
+import http from 'http';
+
+const debug = debugLib('js-finance-api:server');
 
 /**
  * Get port from environment and store in Express.
