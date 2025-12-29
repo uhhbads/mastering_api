@@ -1,5 +1,7 @@
 import express from 'express';
-import User from '../jwt_models/User.js';
+import User from '../models/User.js';
+import authController from '../controller/authController.js';
+import authMiddleware from '../jwt_middleware/authMiddleware.js';
 
 var router = express.Router();
 
@@ -16,22 +18,13 @@ router.get('/', async (req, res) => {
 });
 
 /* POST for REGISTER */
-router.post('/register', async (req, res) => {
-  try {
-    const newUser = new User(req.body);
-    const savedUser = await newUser.save();
-    res.status(201).json(savedUser);
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to register' });
-  }
-});
-
+router.post('/register', authController.register);
 
 /* POST for LOGIN */
-router.post('/login', function(req, res, next) {
-  res.send('POST for LOGIN');
-});
+router.post('/login', authController.login);
+
+/* GET for USER */
+router.get('/profile', authMiddleware, authController.profile);
 
 /* DELETE for USER */
 router.delete('/user/:id', async (req, res) => {
