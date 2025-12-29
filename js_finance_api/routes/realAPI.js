@@ -8,9 +8,9 @@ var router = express.Router();
 /* GET for DEFAULT */
 router.get('/', async (req, res) => {
   try {
-    const results = await User.find({});
+    const users = await User.find({}, '-password'); 
 
-    res.send(results).status(200);
+    res.status(200).json(users);
   } catch (err) {
     console.error(err);
     res.status(500).json({ error: 'Failed to fetch users' });
@@ -27,41 +27,22 @@ router.post('/login', authController.login);
 router.get('/profile', authMiddleware, authController.profile);
 
 /* DELETE for USER */
-router.delete('/user/:id', async (req, res) => {
-  try {
-    const deletedUser = await User.findByIdAndDelete(req.params.id);
-    if (!deletedUser) return res.status(404).json({ error: 'User not found' });
-    res.status(200).json({ message: `${deletedUser.username} deleted successfully` });
-  } catch (err) {
-    console.error(err);
-    res.status(500).json({ error: 'Failed to delete user' });
-  }
-});
+router.delete('/users/me', authMiddleware, authController.deleteUser);
 
 /* GET for TRANSACTIONS */
-router.get('/transactions', function(req, res, next) {
-  res.send('GET for TRANSACTIONS');
-});
+router.get('/transactions', authMiddleware, authController.getTransactions);
 
 /* POST for TRANSACTIONS */
-router.post('/transactions', function(req, res, next) {
-  res.send('POST for TRANSACTIONS');
-});
+router.post('/transactions', authMiddleware, authController.createTransaction);
 
 /* PUT for TRANSACTION ITEMS */
-router.put('/transactions/:id', function(req, res, next) {
-  res.send('PUT for TRANSACTION ITEMS');
-});
+router.put('/transactions/:id', authMiddleware, authController.updateTransaction);
 
 /* DELETE for TRANSACTION ITEMS */
-router.delete('/transactions/:id', function(req, res, next) {
-  res.send('DELETE for TRANSACTION ITEMS');
-});
+router.delete('/transactions/:id', authMiddleware, authController.deleteTransaction);
 
 /* GET for BALANCE */
-router.get('/balance', function(req, res, next) {
-  res.send('GET for BALANCE');
-});
+router.get('/balance', authMiddleware, authController.getBalance);
 
 //module.exports = router;
 export default router;
