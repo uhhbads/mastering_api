@@ -1,7 +1,7 @@
 import dotenv from "dotenv";
 dotenv.config();
 
-import { MongoClient } from "mongodb";
+import mongoose from "mongoose";
 
 const connectionString = process.env.CONNECTION_STRING;
 
@@ -10,20 +10,12 @@ if (!connectionString) {
   process.exit(1);
 }
 
-const client = new MongoClient(connectionString);
-
-
-let conn;
 try {
-  conn = await client.connect();
-  console.log("✅ MongoDB connected");
+  await mongoose.connect(connectionString);
+  console.log("✅ MongoDB connected via Mongoose");
 } catch (err) {
   console.error("❌ MongoDB connection failed", err);
   process.exit(1);
 }
 
-export function getDb(dbName) {
-  return client.db(dbName);
-}
-
-//export default client;
+export default mongoose;
