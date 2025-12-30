@@ -2,6 +2,7 @@ import User from '../models/User.js';
 import Transaction from '../models/Transaction.js';
 import { hashPassword, comparePasswords } from '../jwt_services/hashService.js';
 import { generateToken } from '../jwt_services/jwtService.js';
+import mongoose from '../db/conn.mjs';
 
 export const register = async (req, res) => {
     try{
@@ -108,21 +109,38 @@ export const deleteUser = async (req, res) => {
   }
 };
 
-
 /* GET /transactions */
 export const getTransactions = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user.id })
-        .populate('userId', 'username')
-        .sort({ date: -1 });
+    const page = Math.max(parseInt(req.query.page) || 1, 1);
+    const limit = Math.min(parseInt(req.query.limit) || 10, 50);
+    const skip = (page - 1) * limit;
 
-    res.status(200).json(transactions);
+    const [transactions, total] = await Promise.all([
+      Transaction.find({ userId: req.user.id, isDeleted: false })
+        .populate("userId", "username")
+        .sort({ date: -1 })
+        .skip(skip)
+        .limit(limit),
+
+      Transaction.countDocuments({ userId: req.user.id, isDeleted: false })
+    ]);
+
+    res.status(200).json({
+      page,
+      limit,
+      total,
+      totalPages: Math.ceil(total / limit),
+      hasNextPage: skip + transactions.length < total,
+      data: transactions
+    });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to fetch transactions' });
+    res.status(500).json({ error: "Failed to fetch transactions" });
   }
 };
 
-/* GET /transactions */
+
+/* GET /transactions/:id */
 export const getTransactionId = async (req, res) => {
   try {
     const transaction = await Transaction.findById(req.params.id)
@@ -137,22 +155,52 @@ export const getTransactionId = async (req, res) => {
 
 /* POST /transactions */
 export const createTransaction = async (req, res) => {
-  try {
-    const { type, amount, description } = req.body;
+  const session = await mongoose.startSession();
+  session.startTransaction();
 
-    const transaction = await Transaction.create({
-      userId: req.user.id,
+  try {
+    const type = req.body.type;
+    const amount = Number(req.body.amount);
+    const description = req.body.description;
+
+    if (!["income", "expense"].includes(type))
+      return res.status(400).json({ error: "Invalid type" });
+
+    if (isNaN(amount) || amount <= 0)
+      return res.status(400).json({ error: "Invalid amount" });
+
+    const userId = req.user.id;
+
+    const user = await User.findById(userId).session(session);
+
+    if (!user) throw new Error("User not found");
+
+    if (type === "expense" && user.balance < amount) {
+      return res.status(400).json({ error: "Insufficient balance" });
+    }
+
+    const delta = type === "income" ? amount : -amount;
+
+    // Update user balance
+    user.balance += delta;
+    await user.save({ session });
+
+    const transaction = new Transaction({
+      userId,
       type,
       amount,
       description
     });
 
-    const populated = await Transaction.findById(transaction._id)
-      .populate('userId', 'username');
+    await transaction.save({ session });
 
-    res.status(201).json(populated);
+    await session.commitTransaction();
+    res.status(201).json({ transaction, balance: user.balance });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to create transaction' });
+    await session.abortTransaction();
+    res.status(500).json({ error: "Transaction failed" });
+  } finally {
+    session.endSession();
   }
 };
 
@@ -193,17 +241,19 @@ export const deleteTransaction = async (req, res) => {
 /* GET /balance */
 export const getBalance = async (req, res) => {
   try {
-    const transactions = await Transaction.find({ userId: req.user.id });
+    const user = await User.findById(req.user.id).select("balance isDeleted");
 
-    const balance = transactions.reduce((total, t) => {
-      return t.type === 'income' ? total + t.amount : total - t.amount;
-    }, 0);
+    if (!user || user.isDeleted)
+      return res.status(404).json({ error: "User not found" });
 
-    res.status(200).json({ balance });
+    res.status(200).json({ balance: user.balance });
   } catch (err) {
-    res.status(500).json({ error: 'Failed to calculate balance' });
+    console.error(err);
+    res.status(500).json({ error: "Failed to get balance" });
   }
 };
+
+
 
 export default {
     register,
